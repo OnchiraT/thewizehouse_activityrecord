@@ -67,11 +67,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
-        // The app currently uses "nickname" for login, but Supabase Auth uses email.
-        // We might need to change the login form to ask for email, OR lookup email by nickname.
-        // For this migration, let's assume we switch to Email login, OR we do a lookup.
-        // Let's try to sign in with email.
-
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -82,16 +77,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const register = async (userData) => {
-        // userData contains nickname, password, etc.
-        // We need an email for Supabase Auth.
-        // If the form doesn't have email, we might need to fake one or ask for it.
-        // Let's assume we add an email field to the register form.
-        // For now, if no email, we can't register.
-
-        if (!userData.email) {
-            return { success: false, message: "Email is required for registration" };
-        }
-
         const { data, error } = await supabase.auth.signUp({
             email: userData.email,
             password: userData.password,
@@ -106,14 +91,15 @@ export const AuthProvider = ({ children }) => {
                 .insert([{
                     id: data.user.id,
                     nickname: userData.nickname,
-                    full_name: userData.fullName, // Assuming fullName is passed
-                    upline: userData.upline,
+                    full_name: userData.fullName,
+                    upline: userData.upline || null, // Ensure empty string becomes null if needed, or keep as is
                     points: 0,
                     streak: 0,
                     join_date: new Date().toISOString()
                 }]);
 
             if (profileError) {
+                // If profile creation fails, we might want to cleanup the auth user, but for now just return error
                 return { success: false, message: profileError.message };
             }
         }

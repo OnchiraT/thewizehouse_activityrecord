@@ -13,6 +13,7 @@ const Register = () => {
 
     const [formData, setFormData] = useState({
         fullName: '',
+        email: '',
         nickname: '',
         password: '',
         upline: '',
@@ -46,7 +47,7 @@ const Register = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (!formData.avatar) {
@@ -54,7 +55,7 @@ const Register = () => {
             return;
         }
 
-        const result = register(formData);
+        const result = await register(formData);
         if (result.success) {
             addToast('Welcome to The Wize House!', 'success');
             navigate('/');
@@ -109,7 +110,20 @@ const Register = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="nickname" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Nickname (Login ID)</label>
+                        <label htmlFor="email" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                            style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="nickname" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Nickname (Display Name)</label>
                         <input
                             type="text"
                             id="nickname"

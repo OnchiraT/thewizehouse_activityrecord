@@ -6,15 +6,15 @@ import { useToast } from '../context/ToastContext';
 import '../styles/global.css';
 
 const Login = () => {
-    const [nickname, setNickname] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const { login } = useAuth();
     const { addToast } = useToast();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const result = login(nickname, password);
+        const result = await login(email, password);
         if (result.success) {
             addToast('Welcome back!', 'success');
             navigate('/');
@@ -30,12 +30,12 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="nickname" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Nickname</label>
+                        <label htmlFor="email" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Email</label>
                         <input
-                            type="text"
-                            id="nickname"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                             style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #D1D5DB' }}
                         />
