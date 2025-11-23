@@ -14,9 +14,12 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log('Login.jsx: Submitting login...');
         const result = await login(email, password);
+        console.log('Login.jsx: Login result:', result);
         if (result.success) {
             addToast('Welcome back!', 'success');
+            console.log('Login.jsx: Navigating to dashboard...');
             navigate('/', { replace: true });
         } else {
             addToast(result.message, 'error');
@@ -25,10 +28,12 @@ const Login = () => {
 
     // If user is already logged in, redirect to dashboard
     React.useEffect(() => {
+        console.log('Login.jsx: useEffect triggered, user:', user);
         if (user) {
+            console.log('Login.jsx: User exists, redirecting to dashboard...');
             navigate('/', { replace: true });
         }
-    }, [user]);
+    }, [user, navigate]);
 
     return (
         <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
