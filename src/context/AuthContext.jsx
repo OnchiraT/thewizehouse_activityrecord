@@ -80,29 +80,18 @@ export const AuthProvider = ({ children }) => {
         const { data, error } = await supabase.auth.signUp({
             email: userData.email,
             password: userData.password,
+            options: {
+                data: {
+                    nickname: userData.nickname,
+                    full_name: userData.fullName,
+                    upline: userData.upline || null
+                }
+            }
         });
 
         if (error) return { success: false, message: error.message };
 
-        if (data.user) {
-            // Create profile
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([{
-                    id: data.user.id,
-                    nickname: userData.nickname,
-                    full_name: userData.fullName,
-                    upline: userData.upline || null, // Ensure empty string becomes null if needed, or keep as is
-                    points: 0,
-                    streak: 0,
-                    join_date: new Date().toISOString()
-                }]);
-
-            if (profileError) {
-                // If profile creation fails, we might want to cleanup the auth user, but for now just return error
-                return { success: false, message: profileError.message };
-            }
-        }
+        // Profile is now created automatically by Supabase Trigger
 
         return { success: true };
     };
