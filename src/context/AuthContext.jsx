@@ -141,7 +141,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
-        console.log('AuthContext: login() called with email:', email);
         setLoading(true);
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -149,21 +148,15 @@ export const AuthProvider = ({ children }) => {
         });
 
         if (error) {
-            console.error('AuthContext: Login error:', error);
             setLoading(false);
             return { success: false, message: error.message };
         }
 
-        console.log('AuthContext: Login successful, user:', data.user?.id);
         if (data.user) {
-            console.log('AuthContext: Calling fetchProfile...');
             await fetchProfile(data.user.id);
-            console.log('AuthContext: fetchProfile complete');
         }
 
-        console.log('AuthContext: Setting loading to false');
         setLoading(false);
-        console.log('AuthContext: Returning success');
         return { success: true };
     };
 

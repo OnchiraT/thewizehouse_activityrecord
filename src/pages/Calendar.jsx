@@ -236,7 +236,7 @@ const Calendar = () => {
                                             </div>
                                         </td>
                                         <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#4B5563', whiteSpace: 'pre-wrap' }}>
-                                            {getFormattedDetails(activity.data || activity)}
+                                            {getFormattedDetails(activity)}
                                             {(activity.image_url || activity.image) && (
                                                 <div style={{ marginTop: '0.5rem' }}>
                                                     <img
