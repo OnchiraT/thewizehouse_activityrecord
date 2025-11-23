@@ -218,15 +218,55 @@ export const AuthProvider = ({ children }) => {
     const updateUser = async (updates) => {
         if (!user) return;
 
+        let avatarUrl = user.avatar_url || user.avatar; // Handle both legacy and new field names if needed
+
+        // Handle Avatar Upload if present and is base64
+        if (updates.avatar && updates.avatar.startsWith('data:image')) {
+            try {
+                const base64Response = await fetch(updates.avatar);
+                const blob = await base64Response.blob();
+                const fileName = `avatars/${user.id}/${Date.now()}.jpg`;
+
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('activity-images') // Using the same public bucket for simplicity
+                    .upload(fileName, blob);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('activity-images')
+                    .getPublicUrl(fileName);
+
+                avatarUrl = publicUrl;
+            } catch (error) {
+                console.error("Avatar upload failed:", error);
+                // Continue updating other fields even if avatar fails
+            }
+        }
+
+        const profileUpdates = {
+            nickname: updates.nickname || user.nickname,
+            full_name: updates.fullName || user.full_name, // Map fullName to full_name
+            upline: updates.upline || user.upline,
+            avatar_url: avatarUrl
+        };
+
         const { error } = await supabase
             .from('profiles')
-            .update(updates)
+            .update(profileUpdates)
             .eq('id', user.id);
 
         if (error) {
             console.error('Error updating user:', error);
         } else {
-            setUser(prev => ({ ...prev, ...updates }));
+            // Update local state
+            setUser(prev => ({
+                ...prev,
+                ...profileUpdates,
+                // Ensure we update both camelCase and snake_case versions to be safe for UI
+                fullName: profileUpdates.full_name,
+                avatar: avatarUrl
+            }));
         }
     };
 

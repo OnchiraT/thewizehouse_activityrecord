@@ -133,13 +133,37 @@ const Dashboard = () => {
             </div>
 
             {/* Quote & Encouragement */}
-            <div style={{ textAlign: 'center', maxWidth: '500px', marginBottom: '3rem' }}>
+            <div style={{ textAlign: 'center', maxWidth: '500px', marginBottom: '2rem' }}>
                 <p style={{ fontSize: '1.125rem', color: '#4B5563', fontStyle: 'italic', marginBottom: '1rem' }}>
                     "{quote}"
                 </p>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#374151' }}>
                     "เยี่ยมเลย คุณทำต่อเนื่องมา <span style={{ color: isGold ? '#D97706' : strokeColor === 'url(#goldGradient)' ? '#EAB308' : strokeColor }}>{streak}</span> วันแล้วนะ"
                 </h2>
+            </div>
+
+            {/* Total Points Card */}
+            <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        backgroundColor: '#DBEAFE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <Award size={24} color="#3B82F6" />
+                    </div>
+                    <div>
+                        <h3 style={{ fontWeight: 'bold', color: '#1F2937' }}>Total Points</h3>
+                        <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>Accumulated Score</p>
+                    </div>
+                </div>
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#3B82F6' }}>
+                    {user?.points || 0}
+                </div>
             </div>
 
             {/* Badge Card */}

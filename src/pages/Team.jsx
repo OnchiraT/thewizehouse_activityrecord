@@ -6,25 +6,43 @@ import { Users, User, ChevronRight } from 'lucide-react';
 const Team = () => {
     const { user, getDownlines, getAllUsers } = useAuth();
     const [downlines, setDownlines] = useState([]);
-    const [uplineUser, setUplineUser] = useState(null);
-
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (user) {
-            const directDownlines = getDownlines(user.nickname);
-            // Fetch 2nd level downlines for each direct downline
-            const downlinesWithNested = directDownlines.map(d => {
-                const nested = getDownlines(d.nickname);
-                return { ...d, nestedDownlines: nested };
-            });
-            setDownlines(downlinesWithNested);
-        }
+        const fetchDownlines = async () => {
+            if (user) {
+                setLoading(true);
+                try {
+                    const directDownlines = await getDownlines(user.nickname);
+
+                    // Fetch 2nd level downlines for each direct downline
+                    // Use Promise.all to wait for all async operations
+                    const downlinesWithNested = await Promise.all(directDownlines.map(async (d) => {
+                        const nested = await getDownlines(d.nickname);
+                        return { ...d, nestedDownlines: nested };
+                    }));
+
+                    setDownlines(downlinesWithNested);
+                } catch (error) {
+                    console.error("Error fetching team:", error);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchDownlines();
     }, [user, getDownlines]);
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F3F4F6' }}>
             <div style={{ flex: 1, padding: '2rem' }}>
+                <button onClick={() => navigate('/')} className="btn" style={{ marginBottom: '1.5rem', paddingLeft: 0 }}>
+                    <ChevronRight size={20} style={{ marginRight: '0.5rem', transform: 'rotate(180deg)' }} />
+                    Back to Dashboard
+                </button>
+
                 <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '2rem' }}>My Team</h1>
 
                 {/* Downlines Section */}
@@ -34,7 +52,9 @@ const Team = () => {
                         My Downlines ({downlines.length})
                     </h2>
 
-                    {downlines.length > 0 ? (
+                    {loading ? (
+                        <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>Loading team data...</div>
+                    ) : downlines.length > 0 ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                             {downlines.map(downline => (
                                 <div
@@ -51,10 +71,10 @@ const Team = () => {
                                         onClick={() => navigate(`/calendar/${downline.id}`)}
                                         style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', marginBottom: '1rem' }}
                                     >
-                                        <img src={downline.avatar} alt={downline.nickname} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                                        <img src={downline.avatar_url || downline.avatar} alt={downline.nickname} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontWeight: '600' }}>{downline.nickname}</div>
-                                            <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>{downline.fullName}</div>
+                                            <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>{downline.full_name || downline.fullName}</div>
                                             <div style={{ fontSize: '0.75rem', color: '#4F46E5', marginTop: '0.25rem', fontWeight: '500' }}>
                                                 {downline.points} Points • {downline.streak} Day Streak
                                             </div>
@@ -69,7 +89,7 @@ const Team = () => {
                                                 <div
                                                     key={nested.id}
                                                     onClick={() => navigate(`/calendar/${nested.id}`)}
-                                                    title={`${nested.nickname} (${nested.fullName})`}
+                                                    title={`${nested.nickname} (${nested.full_name || nested.fullName})`}
                                                     style={{
                                                         width: '32px',
                                                         height: '32px',
@@ -86,8 +106,8 @@ const Team = () => {
                                                         boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
                                                     }}
                                                 >
-                                                    {nested.avatar ? (
-                                                        <img src={nested.avatar} alt={nested.nickname} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                                    {nested.avatar_url || nested.avatar ? (
+                                                        <img src={nested.avatar_url || nested.avatar} alt={nested.nickname} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                                                     ) : (
                                                         nested.nickname.charAt(0).toUpperCase()
                                                     )}

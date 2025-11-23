@@ -184,11 +184,11 @@ const Profile = () => {
                             <div className="flex gap-4" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #E5E7EB' }}>
                                 <div style={{ flex: 1, textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Total Score</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#3B82F6' }}>{user.points}</div>
+                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#3B82F6' }}>{user.points || 0}</div>
                                 </div>
                                 <div style={{ flex: 1, textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Current Streak</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#EF4444' }}>{user.streak}</div>
+                                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#EF4444' }}>{user.streak || 0}</div>
                                 </div>
                             </div>
                         )}
