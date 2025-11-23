@@ -11,15 +11,6 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         console.log('AuthContext: Initializing...');
 
-        // Safety timeout: Force loading to false after 5 seconds
-        const safetyTimeout = setTimeout(() => {
-            console.warn('AuthContext: Safety timeout triggered. Forcing loading to false.');
-            setLoading((prev) => {
-                if (prev) return false;
-                return prev;
-            });
-        }, 5000);
-
         // Check active session
         const getSession = async () => {
             try {
@@ -60,7 +51,6 @@ export const AuthProvider = ({ children }) => {
         });
 
         return () => {
-            clearTimeout(safetyTimeout);
             subscription.unsubscribe();
         };
     }, []);
