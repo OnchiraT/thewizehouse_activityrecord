@@ -10,12 +10,23 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         console.log('AuthContext: Initializing...');
+        let mounted = true;
 
-        // Check active session
+        // Check active session with timeout
         const getSession = async () => {
             try {
                 console.log('AuthContext: Checking session...');
-                const { data: { session } } = await supabase.auth.getSession();
+
+                // Race between session check and timeout
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Session check timeout')), 5000)
+                );
+
+                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+                if (!mounted) return;
+
                 console.log('AuthContext: Session check complete. Session exists:', !!session);
 
                 if (session) {
@@ -27,7 +38,9 @@ export const AuthProvider = ({ children }) => {
                 }
             } catch (error) {
                 console.error('AuthContext: Error checking session:', error);
-                setLoading(false);
+                if (mounted) {
+                    setLoading(false);
+                }
             }
         };
 
@@ -35,6 +48,8 @@ export const AuthProvider = ({ children }) => {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('AuthContext: Auth state changed:', event);
+            if (!mounted) return;
+
             if (session) {
                 // Fetch profile whenever a session is present
                 await fetchProfile(session.user.id);
@@ -46,6 +61,7 @@ export const AuthProvider = ({ children }) => {
         });
 
         return () => {
+            mounted = false;
             subscription.unsubscribe();
         };
     }, []);
