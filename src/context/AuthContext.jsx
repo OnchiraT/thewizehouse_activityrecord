@@ -12,28 +12,35 @@ export const AuthProvider = ({ children }) => {
         console.log('AuthContext: Initializing...');
         let mounted = true;
 
-        // Check active session with timeout
-        const getSession = async () => {
+        // Set up auth state listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('AuthContext: Auth state changed:', event, 'Session:', !!session);
+            if (!mounted) return;
+
+            if (session) {
+                // Fetch profile whenever a session is present
+                console.log('AuthContext: Session detected, fetching profile...');
+                await fetchProfile(session.user.id);
+            } else {
+                console.log('AuthContext: No session, clearing user state');
+                setUser(null);
+                setLoading(false);
+            }
+        });
+
+        // Then check for existing session
+        const checkSession = async () => {
             try {
-                console.log('AuthContext: Checking session...');
-
-                // Race between session check and timeout
-                const sessionPromise = supabase.auth.getSession();
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session check timeout')), 5000)
-                );
-
-                const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+                console.log('AuthContext: Checking for existing session...');
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('AuthContext: Existing session check complete. Has session:', !!session);
 
                 if (!mounted) return;
 
-                console.log('AuthContext: Session check complete. Session exists:', !!session);
-
-                if (session) {
-                    console.log('AuthContext: Fetching profile for user:', session.user.id);
-                    await fetchProfile(session.user.id);
-                } else {
-                    console.log('AuthContext: No session found.');
+                // If no session, set loading to false
+                // If there is a session, onAuthStateChange will handle it
+                if (!session) {
+                    console.log('AuthContext: No existing session found');
                     setLoading(false);
                 }
             } catch (error) {
@@ -44,21 +51,7 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
-        getSession();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('AuthContext: Auth state changed:', event);
-            if (!mounted) return;
-
-            if (session) {
-                // Fetch profile whenever a session is present
-                await fetchProfile(session.user.id);
-            } else {
-                console.log('AuthContext: User signed out or no session.');
-                setUser(null);
-                setLoading(false);
-            }
-        });
+        checkSession();
 
         return () => {
             mounted = false;
