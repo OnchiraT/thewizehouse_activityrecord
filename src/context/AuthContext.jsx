@@ -59,39 +59,63 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
-    const fetchProfile = async (userId) => {
+    const fetchProfile = async (userId, sessionUser = null) => {
         try {
-            const { data, error } = await supabase
+            console.log('AuthContext: Fetching profile for', userId);
+
+            // Race database fetch against a 5-second timeout
+            const dbPromise = supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .single();
 
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+            );
+
+            const { data, error } = await Promise.race([dbPromise, timeoutPromise]);
+
             if (error) {
                 // Attempt to create fallback profile for any error (e.g., missing profile)
                 console.warn('AuthContext: Profile fetch error, attempting fallback creation.', error);
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
+
+                // Use provided sessionUser or fetch it if missing
+                let currentUser = sessionUser;
+                if (!currentUser) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    currentUser = user;
+                }
+
+                if (currentUser) {
                     const { error: insertError } = await supabase
                         .from('profiles')
                         .insert([
                             {
-                                id: user.id,
-                                nickname: user.user_metadata?.nickname || user.email.split('@')[0],
-                                full_name: user.user_metadata?.full_name || '',
-                                upline: user.user_metadata?.upline || null,
+                                id: currentUser.id,
+                                nickname: currentUser.user_metadata?.nickname || currentUser.email.split('@')[0],
+                                full_name: currentUser.user_metadata?.full_name || '',
+                                upline: currentUser.user_metadata?.upline || null,
                                 points: 0,
                                 streak: 0
                             }
                         ]);
                     if (insertError) {
                         console.error('AuthContext: Failed to create fallback profile:', insertError);
-                        throw insertError;
+                        // Don't throw, just use minimal user to allow login
+                    } else {
+                        // Retry fetching the profile after creation (recursive but safe due to timeout/error handling)
+                        // Actually, to avoid infinite loops, let's just set the user directly here
+                        console.log('AuthContext: Fallback profile created, setting user directly');
+                        setUser({
+                            id: currentUser.id,
+                            email: currentUser.email,
+                            nickname: currentUser.user_metadata?.nickname || currentUser.email.split('@')[0],
+                            history: []
+                        });
+                        return;
                     }
-                    // Retry fetching the profile after creation
-                    return fetchProfile(userId);
                 }
-                // If we cannot get user info, rethrow original error
                 throw error;
             }
 
@@ -108,6 +132,8 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error('Error fetching profile:', error);
             // Fallback: set minimal user to avoid null user causing redirect
+            // This ensures we NEVER get stuck on loading
+            console.log('AuthContext: Using minimal fallback user due to error');
             setUser({ id: userId, history: [] });
         } finally {
             setLoading(false);
