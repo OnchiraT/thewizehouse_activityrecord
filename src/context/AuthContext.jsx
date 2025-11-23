@@ -67,16 +67,22 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
+        setLoading(true);
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
 
-        if (error) return { success: false, message: error.message };
+        if (error) {
+            setLoading(false);
+            return { success: false, message: error.message };
+        }
+        // onAuthStateChange will handle fetching profile and setting loading to false
         return { success: true };
     };
 
     const register = async (userData) => {
+        setLoading(true);
         const { data, error } = await supabase.auth.signUp({
             email: userData.email,
             password: userData.password,
@@ -89,9 +95,23 @@ export const AuthProvider = ({ children }) => {
             }
         });
 
-        if (error) return { success: false, message: error.message };
+        if (error) {
+            setLoading(false);
+            return { success: false, message: error.message };
+        }
 
         // Profile is now created automatically by Supabase Trigger
+        // onAuthStateChange will handle the rest if auto-login happens, 
+        // otherwise we might need to set loading false if email confirmation is required.
+        // But for this app, email confirmation is likely disabled or we want to wait.
+        // If email confirmation is OFF, onAuthStateChange fires immediately.
+        // If ON, user needs to check email.
+
+        // For safety, if no user session is established immediately (e.g. email verification needed),
+        // we should set loading false.
+        if (!data.session) {
+            setLoading(false);
+        }
 
         return { success: true };
     };
