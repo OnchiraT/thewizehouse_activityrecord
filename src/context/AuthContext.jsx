@@ -77,7 +77,11 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return { success: false, message: error.message };
         }
-        // onAuthStateChange will handle fetching profile and setting loading to false
+
+        if (data.user) {
+            await fetchProfile(data.user.id);
+        }
+
         return { success: true };
     };
 
