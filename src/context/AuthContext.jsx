@@ -17,14 +17,30 @@ export const AuthProvider = ({ children }) => {
             console.log('AuthContext: Auth state changed:', event, 'Session:', !!session);
             if (!mounted) return;
 
+            // Ignore token refresh events to prevent unnecessary re-renders/fetches
+            if (event === 'TOKEN_REFRESHED') {
+                console.log('AuthContext: Token refreshed, skipping profile fetch');
+                return;
+            }
+
             if (session) {
-                // Fetch profile whenever a session is present
-                console.log('AuthContext: Session detected, fetching profile...');
+                // Only fetch profile if we don't have it or if it's a fresh login
+                // We can check if 'user' state is already populated with the same ID
+                // But 'user' state isn't available in this closure easily without refs or dependency
+                // So we'll just fetch, but we could optimize. 
+                // For now, just ignoring TOKEN_REFRESHED is the big win.
+                console.log('AuthContext: Session detected (not refresh), fetching profile...');
                 await fetchProfile(session.user.id);
-            } else {
-                console.log('AuthContext: No session, clearing user state');
+            } else if (event === 'SIGNED_OUT') {
+                console.log('AuthContext: User signed out, clearing state');
                 setUser(null);
                 setLoading(false);
+            } else {
+                // Other events (e.g. USER_UPDATED, etc) or no session
+                if (!session) {
+                    setUser(null);
+                    setLoading(false);
+                }
             }
         });
 
