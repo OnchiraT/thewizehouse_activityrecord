@@ -11,11 +11,23 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         console.log('AuthContext: Initializing...');
         let mounted = true;
+        let sessionCheckCompleted = false;
+
+        // Aggressive fallback: force loading=false after 3 seconds if nothing happens
+        const emergencyTimeout = setTimeout(() => {
+            if (!sessionCheckCompleted && mounted) {
+                console.warn('AuthContext: Emergency timeout - forcing loading to false');
+                setLoading(false);
+            }
+        }, 3000);
 
         // Set up auth state listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('AuthContext: Auth state changed:', event, 'Session:', !!session);
             if (!mounted) return;
+
+            sessionCheckCompleted = true;
+            clearTimeout(emergencyTimeout);
 
             if (session) {
                 // Fetch profile whenever a session is present
@@ -28,24 +40,37 @@ export const AuthProvider = ({ children }) => {
             }
         });
 
-        // Then check for existing session
+        // Then check for existing session with timeout
         const checkSession = async () => {
             try {
                 console.log('AuthContext: Checking for existing session...');
-                const { data: { session } } = await supabase.auth.getSession();
-                console.log('AuthContext: Existing session check complete. Has session:', !!session);
+
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((resolve) =>
+                    setTimeout(() => resolve({ data: { session: null }, error: null }), 2000)
+                );
+
+                const result = await Promise.race([sessionPromise, timeoutPromise]);
+                const { data: { session } = {} } = result; // Destructure with default empty object for safety
+
+                console.log('AuthContext: Session check complete. Has session:', !!session);
 
                 if (!mounted) return;
+
+                sessionCheckCompleted = true;
+                clearTimeout(emergencyTimeout);
 
                 // If no session, set loading to false
                 // If there is a session, onAuthStateChange will handle it
                 if (!session) {
-                    console.log('AuthContext: No existing session found');
+                    console.log('AuthContext: No existing session, setting loading false');
                     setLoading(false);
                 }
             } catch (error) {
                 console.error('AuthContext: Error checking session:', error);
                 if (mounted) {
+                    sessionCheckCompleted = true;
+                    clearTimeout(emergencyTimeout);
                     setLoading(false);
                 }
             }
@@ -55,6 +80,7 @@ export const AuthProvider = ({ children }) => {
 
         return () => {
             mounted = false;
+            clearTimeout(emergencyTimeout);
             subscription.unsubscribe();
         };
     }, []);
