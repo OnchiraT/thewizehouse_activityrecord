@@ -81,7 +81,7 @@ const RecordActivity = () => {
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const activity = {
@@ -91,19 +91,23 @@ const RecordActivity = () => {
             timestamp: new Date().toISOString()
         };
 
-        const result = addActivity(activity);
+        const result = await addActivity(activity);
 
         if (result.success) {
             addToast(`Activity recorded! You earned ${result.pointsAdded} point(s).`, 'success');
             setTimeout(() => {
                 navigate('/');
             }, 2000);
+        } else {
+            addToast(result.message || 'Failed to record activity', 'error');
         }
     };
 
     // Check eligibility for points
     const today = new Date().toISOString().split('T')[0];
-    const isEligible = selectedType && !user.history.some(a => a.dateString === today && a.type === selectedType.id);
+    // Note: user.history might now contain objects with date_string (Supabase) or dateString (legacy/local)
+    // We should standardize, but for now let's check both or assume Supabase format 'date_string'
+    const isEligible = selectedType && !user.history.some(a => (a.date_string || a.dateString) === today && a.type === selectedType.id);
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F3F4F6' }}>

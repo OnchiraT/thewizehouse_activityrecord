@@ -22,7 +22,11 @@ const Register = () => {
     const [uplines, setUplines] = useState([]);
 
     useEffect(() => {
-        setUplines(getAllUsers());
+        const fetchUplines = async () => {
+            const users = await getAllUsers();
+            setUplines(users || []);
+        };
+        fetchUplines();
     }, [getAllUsers]);
 
     const handleChange = (e) => {
@@ -131,7 +135,7 @@ const Register = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="upline" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Upline</label>
+                        <label htmlFor="upline" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Upline (Optional)</label>
                         <UserSearch
                             onSelect={(user) => setFormData(prev => ({ ...prev, upline: user ? user.nickname : '' }))}
                             placeholder="Search for Upline..."

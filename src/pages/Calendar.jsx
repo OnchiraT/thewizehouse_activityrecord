@@ -62,17 +62,20 @@ const Calendar = () => {
     const getActivitiesForDay = (day) => {
         if (!displayUser || !displayUser.history) return [];
         const dateString = format(day, 'yyyy-MM-dd');
-        return displayUser.history.filter(a => a.dateString === dateString);
+        return displayUser.history.filter(a => (a.date_string || a.dateString) === dateString);
     };
 
     const getFormattedDetails = (activity) => {
-        let details = '';
-        if (activity.type === 'checkin') details = `Type: ${activity.checkinType}`;
-        if (activity.type === 'book') details = `Title: ${activity.bookTitle}\nSummary: ${activity.summary}`;
-        if (activity.type === 'clip') details = `Link: ${activity.clipLink}\nSummary: ${activity.summary}`;
-        if (activity.type === 'coaching') details = `Coachee: ${activity.coachee}\nNotes: ${activity.notes}`;
-        if (activity.type === 'sale') details = `Amount: ${activity.amount}\nNotes: ${activity.notes}`;
-        return details;
+        // Handle Supabase structure where details are in 'data' column, or legacy flat structure
+        const details = activity.data || activity;
+
+        let text = '';
+        if (activity.type === 'checkin') text = `Type: ${details.checkinType}`;
+        if (activity.type === 'book') text = `Title: ${details.bookTitle}\nSummary: ${details.summary}`;
+        if (activity.type === 'clip') text = `Link: ${details.clipLink}\nSummary: ${details.summary}`;
+        if (activity.type === 'coaching') text = `Coachee: ${details.coachee}\nNotes: ${details.notes}`;
+        if (activity.type === 'sale') text = `Amount: ${details.amount}\nNotes: ${details.notes}`;
+        return text;
     };
 
     const handleExportExcel = () => {
@@ -223,8 +226,8 @@ const Calendar = () => {
                                 return (
                                     <tr key={idx} style={{ borderTop: '1px solid #E5E7EB' }}>
                                         <td style={{ padding: '1rem', verticalAlign: 'top' }}>
-                                            <div style={{ fontWeight: '500' }}>{activity.dateString}</div>
-                                            <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{format(new Date(activity.timestamp), 'HH:mm')}</div>
+                                            <div style={{ fontWeight: '500' }}>{activity.date_string || activity.dateString}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{format(new Date(activity.created_at || activity.timestamp), 'HH:mm')}</div>
                                         </td>
                                         <td style={{ padding: '1rem', verticalAlign: 'top' }}>
                                             <div className="flex items-center gap-2">
@@ -233,14 +236,14 @@ const Calendar = () => {
                                             </div>
                                         </td>
                                         <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#4B5563', whiteSpace: 'pre-wrap' }}>
-                                            {getFormattedDetails(activity)}
-                                            {activity.image && (
+                                            {getFormattedDetails(activity.data || activity)}
+                                            {(activity.image_url || activity.image) && (
                                                 <div style={{ marginTop: '0.5rem' }}>
                                                     <img
-                                                        src={activity.image}
+                                                        src={activity.image_url || activity.image}
                                                         alt="Evidence"
                                                         style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #E5E7EB', cursor: 'pointer' }}
-                                                        onClick={() => setSelectedImage(activity.image)}
+                                                        onClick={() => setSelectedImage(activity.image_url || activity.image)}
                                                     />
                                                 </div>
                                             )}

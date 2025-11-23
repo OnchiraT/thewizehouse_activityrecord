@@ -11,7 +11,7 @@ const AdminLogin = () => {
 
     const handleLogin = (e) => {
         e.preventDefault();
-        if (username === 'admin' && password === 'pjTWH2025') {
+        if (username === 'Admin' && password === 'PJtwh2025') {
             localStorage.setItem('isAdmin', 'true');
             addToast('Admin login successful', 'success');
             navigate('/admin/dashboard');
