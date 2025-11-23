@@ -73,15 +73,37 @@ export const AuthProvider = ({ children }) => {
                 .eq('id', userId)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                // If profile not found, try to create it (Fallback for failed triggers)
+                if (error.code === 'PGRST116') {
+                    console.warn('AuthContext: Profile not found. Attempting to create fallback profile...');
+                    const { data: { user } } = await supabase.auth.getUser();
 
-            // Fetch recent history for streak/points calculation if needed locally, 
-            // but for now let's just attach the profile.
-            // We might need to fetch history separately or join it.
-            // For simplicity, let's fetch the last few activities to keep the 'history' prop working if possible,
-            // or refactor the app to fetch history where needed.
-            // The current app expects `user.history` array.
+                    if (user) {
+                        const { error: insertError } = await supabase
+                            .from('profiles')
+                            .insert([{
+                                id: user.id,
+                                nickname: user.user_metadata?.nickname || user.email.split('@')[0],
+                                full_name: user.user_metadata?.full_name || '',
+                                upline: user.user_metadata?.upline || null,
+                                points: 0,
+                                streak: 0
+                            }]);
 
+                        if (insertError) {
+                            console.error('AuthContext: Failed to create fallback profile:', insertError);
+                            throw insertError;
+                        }
+
+                        // Retry fetch
+                        return fetchProfile(userId);
+                    }
+                }
+                throw error;
+            }
+
+            // Fetch recent history
             const { data: history, error: historyError } = await supabase
                 .from('activities')
                 .select('*')
@@ -93,6 +115,7 @@ export const AuthProvider = ({ children }) => {
             setUser({ ...data, history: history || [] });
         } catch (error) {
             console.error('Error fetching profile:', error);
+            // Ensure loading is turned off even on error
         } finally {
             setLoading(false);
         }
