@@ -9,28 +9,60 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log('AuthContext: Initializing...');
+
+        // Safety timeout: Force loading to false after 5 seconds
+        const safetyTimeout = setTimeout(() => {
+            console.warn('AuthContext: Safety timeout triggered. Forcing loading to false.');
+            setLoading((prev) => {
+                if (prev) return false;
+                return prev;
+            });
+        }, 5000);
+
         // Check active session
         const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                await fetchProfile(session.user.id);
-            } else {
+            try {
+                console.log('AuthContext: Checking session...');
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('AuthContext: Session check complete. Session exists:', !!session);
+
+                if (session) {
+                    console.log('AuthContext: Fetching profile for user:', session.user.id);
+                    await fetchProfile(session.user.id);
+                } else {
+                    console.log('AuthContext: No session found.');
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error('AuthContext: Error checking session:', error);
                 setLoading(false);
             }
         };
 
         getSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('AuthContext: Auth state changed:', event);
             if (session) {
-                await fetchProfile(session.user.id);
+                // Only fetch if we don't have the user or if it's a different user
+                // But for simplicity, let's just fetch.
+                // We need to be careful not to set loading=true if we are already loaded?
+                // Actually, on SIGN_IN, we might want to ensure profile is loaded.
+                if (event === 'SIGNED_IN') {
+                    await fetchProfile(session.user.id);
+                }
             } else {
+                console.log('AuthContext: User signed out or no session.');
                 setUser(null);
                 setLoading(false);
             }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            clearTimeout(safetyTimeout);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const fetchProfile = async (userId) => {
