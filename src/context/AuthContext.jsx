@@ -36,13 +36,8 @@ export const AuthProvider = ({ children }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('AuthContext: Auth state changed:', event);
             if (session) {
-                // Only fetch if we don't have the user or if it's a different user
-                // But for simplicity, let's just fetch.
-                // We need to be careful not to set loading=true if we are already loaded?
-                // Actually, on SIGN_IN, we might want to ensure profile is loaded.
-                if (event === 'SIGNED_IN') {
-                    await fetchProfile(session.user.id);
-                }
+                // Fetch profile whenever a session is present
+                await fetchProfile(session.user.id);
             } else {
                 console.log('AuthContext: User signed out or no session.');
                 setUser(null);
@@ -64,32 +59,30 @@ export const AuthProvider = ({ children }) => {
                 .single();
 
             if (error) {
-                // If profile not found, try to create it (Fallback for failed triggers)
-                if (error.code === 'PGRST116') {
-                    console.warn('AuthContext: Profile not found. Attempting to create fallback profile...');
-                    const { data: { user } } = await supabase.auth.getUser();
-
-                    if (user) {
-                        const { error: insertError } = await supabase
-                            .from('profiles')
-                            .insert([{
+                // Attempt to create fallback profile for any error (e.g., missing profile)
+                console.warn('AuthContext: Profile fetch error, attempting fallback creation.', error);
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { error: insertError } = await supabase
+                        .from('profiles')
+                        .insert([
+                            {
                                 id: user.id,
                                 nickname: user.user_metadata?.nickname || user.email.split('@')[0],
                                 full_name: user.user_metadata?.full_name || '',
                                 upline: user.user_metadata?.upline || null,
                                 points: 0,
                                 streak: 0
-                            }]);
-
-                        if (insertError) {
-                            console.error('AuthContext: Failed to create fallback profile:', insertError);
-                            throw insertError;
-                        }
-
-                        // Retry fetch
-                        return fetchProfile(userId);
+                            }
+                        ]);
+                    if (insertError) {
+                        console.error('AuthContext: Failed to create fallback profile:', insertError);
+                        throw insertError;
                     }
+                    // Retry fetching the profile after creation
+                    return fetchProfile(userId);
                 }
+                // If we cannot get user info, rethrow original error
                 throw error;
             }
 
@@ -105,7 +98,8 @@ export const AuthProvider = ({ children }) => {
             setUser({ ...data, history: history || [] });
         } catch (error) {
             console.error('Error fetching profile:', error);
-            // Ensure loading is turned off even on error
+            // Fallback: set minimal user to avoid null user causing redirect
+            setUser({ id: userId, history: [] });
         } finally {
             setLoading(false);
         }

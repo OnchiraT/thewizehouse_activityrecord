@@ -8,7 +8,7 @@ import '../styles/global.css';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
+    const { login, user } = useAuth();
     const { addToast } = useToast();
     const navigate = useNavigate();
 
@@ -17,11 +17,18 @@ const Login = () => {
         const result = await login(email, password);
         if (result.success) {
             addToast('Welcome back!', 'success');
-            navigate('/');
+            navigate('/', { replace: true });
         } else {
             addToast(result.message, 'error');
         }
     };
+
+    // If user is already logged in, redirect to dashboard
+    React.useEffect(() => {
+        if (user) {
+            navigate('/', { replace: true });
+        }
+    }, [user]);
 
     return (
         <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
