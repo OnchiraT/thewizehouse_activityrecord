@@ -82,6 +82,7 @@ export const AuthProvider = ({ children }) => {
             await fetchProfile(data.user.id);
         }
 
+        setLoading(false);
         return { success: true };
     };
 
