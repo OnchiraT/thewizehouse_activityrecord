@@ -67,7 +67,16 @@ const Calendar = () => {
 
     const getFormattedDetails = (activity) => {
         // Handle Supabase structure where details are in 'data' column, or legacy flat structure
-        const details = activity.data || activity;
+        let details = activity.data || activity;
+
+        // Safely handle if data is a string
+        if (typeof details === 'string') {
+            try {
+                details = JSON.parse(details);
+            } catch (e) {
+                // If parse fails, keep as is (likely just a string)
+            }
+        }
 
         let text = '';
         if (activity.type === 'checkin') text = `Type: ${details.checkinType}`;
@@ -76,6 +85,27 @@ const Calendar = () => {
         if (activity.type === 'coaching') text = `Coachee: ${details.coachee}\nNotes: ${details.notes}`;
         if (activity.type === 'sale') text = `Amount: ${details.amount}\nNotes: ${details.notes}`;
         return text;
+    };
+
+    const getImageSource = (activity) => {
+        if (activity.image_url) return activity.image_url;
+
+        // Check data object
+        let data = activity.data;
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                data = {};
+            }
+        }
+
+        if (data && data.image) return data.image;
+
+        // Check top level legacy
+        if (activity.image) return activity.image;
+
+        return null;
     };
 
     const handleExportExcel = () => {
@@ -237,20 +267,20 @@ const Calendar = () => {
                                         </td>
                                         <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#4B5563', whiteSpace: 'pre-wrap' }}>
                                             {getFormattedDetails(activity)}
-                                            {(activity.image_url || activity.data?.image || activity.image) && (
+                                            {getImageSource(activity) && (
                                                 <div style={{ marginTop: '0.5rem' }}>
                                                     <img
-                                                        src={activity.image_url || activity.data?.image || activity.image}
+                                                        src={getImageSource(activity)}
                                                         alt="Evidence"
                                                         style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #E5E7EB', cursor: 'pointer', display: 'block' }}
-                                                        onClick={() => setSelectedImage(activity.image_url || activity.data?.image || activity.image)}
+                                                        onClick={() => setSelectedImage(getImageSource(activity))}
                                                         onError={(e) => {
                                                             e.target.style.display = 'none';
                                                             e.target.nextSibling.style.display = 'block';
                                                         }}
                                                     />
                                                     <a
-                                                        href={activity.image_url || activity.data?.image || activity.image}
+                                                        href={getImageSource(activity)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         style={{ display: 'none', fontSize: '0.75rem', color: '#3B82F6', textDecoration: 'underline' }}
