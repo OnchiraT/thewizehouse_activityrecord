@@ -20,9 +20,9 @@ const Profile = () => {
             setFormData({
                 fullName: user.fullName,
                 nickname: user.nickname,
-                avatar: user.avatar
+                avatar: user.avatar_url || user.avatar
             });
-            setPreviewUrl(user.avatar);
+            setPreviewUrl(user.avatar_url || user.avatar);
         }
     }, [user]);
 
@@ -59,9 +59,9 @@ const Profile = () => {
         setFormData({
             fullName: user.fullName,
             nickname: user.nickname,
-            avatar: user.avatar
+            avatar: user.avatar_url || user.avatar
         });
-        setPreviewUrl(user.avatar);
+        setPreviewUrl(user.avatar_url || user.avatar);
         setIsEditing(false);
     };
 
@@ -105,7 +105,7 @@ const Profile = () => {
                             border: '4px solid #fff',
                             boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                         }}>
-                            <img src={previewUrl || user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={previewUrl || user.avatar_url || user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                         {isEditing && (
                             <label style={{

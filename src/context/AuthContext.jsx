@@ -229,7 +229,10 @@ export const AuthProvider = ({ children }) => {
 
                 const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('activity-images') // Using the same public bucket for simplicity
-                    .upload(fileName, blob);
+                    .upload(fileName, blob, {
+                        contentType: blob.type || 'image/jpeg',
+                        upsert: true
+                    });
 
                 if (uploadError) throw uploadError;
 
