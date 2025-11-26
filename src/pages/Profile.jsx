@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Camera, Upload, ArrowLeft, Edit2, Save, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UserSearch from '../components/UserSearch';
@@ -42,9 +43,16 @@ const Profile = () => {
         }
     };
 
-    const handleSave = () => {
-        updateUser(formData);
-        setIsEditing(false);
+    const { addToast } = useToast();
+
+    const handleSave = async () => {
+        const result = await updateUser(formData);
+        if (result && result.success) {
+            addToast('Profile updated successfully!', 'success');
+            setIsEditing(false);
+        } else {
+            addToast(result?.error || 'Failed to update profile', 'error');
+        }
     };
 
     const handleCancel = () => {

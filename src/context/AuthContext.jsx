@@ -258,6 +258,7 @@ export const AuthProvider = ({ children }) => {
 
         if (error) {
             console.error('Error updating user:', error);
+            return { success: false, error: error.message };
         } else {
             // Update local state
             setUser(prev => ({
@@ -267,6 +268,7 @@ export const AuthProvider = ({ children }) => {
                 fullName: profileUpdates.full_name,
                 avatar: avatarUrl
             }));
+            return { success: true };
         }
     };
 
