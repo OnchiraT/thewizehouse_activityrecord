@@ -237,20 +237,20 @@ const Calendar = () => {
                                         </td>
                                         <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#4B5563', whiteSpace: 'pre-wrap' }}>
                                             {getFormattedDetails(activity)}
-                                            {(activity.image_url || activity.image) && (
+                                            {(activity.image_url || activity.data?.image || activity.image) && (
                                                 <div style={{ marginTop: '0.5rem' }}>
                                                     <img
-                                                        src={activity.image_url || activity.image}
+                                                        src={activity.image_url || activity.data?.image || activity.image}
                                                         alt="Evidence"
                                                         style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '4px', border: '1px solid #E5E7EB', cursor: 'pointer', display: 'block' }}
-                                                        onClick={() => setSelectedImage(activity.image_url || activity.image)}
+                                                        onClick={() => setSelectedImage(activity.image_url || activity.data?.image || activity.image)}
                                                         onError={(e) => {
                                                             e.target.style.display = 'none';
                                                             e.target.nextSibling.style.display = 'block';
                                                         }}
                                                     />
                                                     <a
-                                                        href={activity.image_url || activity.image}
+                                                        href={activity.image_url || activity.data?.image || activity.image}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         style={{ display: 'none', fontSize: '0.75rem', color: '#3B82F6', textDecoration: 'underline' }}
