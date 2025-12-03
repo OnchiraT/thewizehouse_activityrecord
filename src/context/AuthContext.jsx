@@ -79,10 +79,11 @@ export const AuthProvider = ({ children }) => {
         try {
             console.log('AuthContext: Fetching profile for', userId);
 
-            // Race database fetch against a 5-second timeout
+            // Race database fetch against a 20-second timeout
+            // Fetch profile AND ScoreMember
             const dbPromise = supabase
                 .from('profiles')
-                .select('*')
+                .select('*, ScoreMember(*)')
                 .eq('id', userId)
                 .single();
 
@@ -112,22 +113,26 @@ export const AuthProvider = ({ children }) => {
                                 nickname: currentUser.user_metadata?.nickname || currentUser.email.split('@')[0],
                                 full_name: currentUser.user_metadata?.full_name || '',
                                 upline: currentUser.user_metadata?.upline || null,
-                                points: 0,
-                                streak: 0
+                                // Points/Streak now in ScoreMember, handled separately or default 0
                             }
                         ]);
+
+                    // Also create ScoreMember entry
+                    const { error: scoreError } = await supabase
+                        .from('ScoreMember')
+                        .insert([{ member_id: currentUser.id }]);
+
                     if (insertError) {
                         console.error('AuthContext: Failed to create fallback profile:', insertError);
-                        // Don't throw, just use minimal user to allow login
                     } else {
-                        // Retry fetching the profile after creation (recursive but safe due to timeout/error handling)
-                        // Actually, to avoid infinite loops, let's just set the user directly here
                         console.log('AuthContext: Fallback profile created, setting user directly');
                         setUser({
                             id: currentUser.id,
                             email: currentUser.email,
                             nickname: currentUser.user_metadata?.nickname || currentUser.email.split('@')[0],
-                            history: []
+                            history: [],
+                            points: 0,
+                            streak: 0
                         });
                         return;
                     }
@@ -135,22 +140,28 @@ export const AuthProvider = ({ children }) => {
                 throw error;
             }
 
-            // Fetch recent history
+            // Fetch recent history from VIEW
             const { data: history, error: historyError } = await supabase
-                .from('activities')
+                .from('activity_history_view')
                 .select('*')
                 .eq('user_id', userId)
                 .order('created_at', { ascending: false });
 
             if (historyError) throw historyError;
 
-            setUser({ ...data, history: history || [] });
+            // Map ScoreMember data to user object for backward compatibility
+            const scoreData = data.ScoreMember?.[0] || { total_point: 0, current_streak: 0 };
+
+            setUser({
+                ...data,
+                points: scoreData.total_point,
+                streak: scoreData.current_streak,
+                history: history || []
+            });
         } catch (error) {
             console.error('Error fetching profile:', error);
-            // Fallback: set minimal user to avoid null user causing redirect
-            // This ensures we NEVER get stuck on loading
             console.log('AuthContext: Using minimal fallback user due to error');
-            setUser({ id: userId, history: [] });
+            setUser({ id: userId, history: [], points: 0, streak: 0 });
         } finally {
             setLoading(false);
         }
@@ -279,30 +290,16 @@ export const AuthProvider = ({ children }) => {
         if (!user) return { success: false, message: 'Not logged in' };
 
         const today = getBKKDateString();
-
-        // Prepare activity data
-        const newActivity = {
-            user_id: user.id,
-            type: activity.type,
-            data: {
-                ...activity, // Store all other fields in data JSONB
-                type: undefined, // Remove duplicate fields
-                image: undefined // Don't store base64 image in JSON if possible, handle separately
-            },
-            date_string: today,
-            created_at: new Date().toISOString()
-        };
-
-        // Handle Image Upload if present (base64)
         let imageUrl = null;
+
+        // 1. Upload Image if present
         if (activity.image) {
-            // Convert base64 to blob and upload
             try {
                 const base64Response = await fetch(activity.image);
                 const blob = await base64Response.blob();
                 const fileName = `${user.id}/${Date.now()}.jpg`;
 
-                const { data: uploadData, error: uploadError } = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from('activity-images')
                     .upload(fileName, blob, {
                         contentType: blob.type || 'image/jpeg',
@@ -316,68 +313,130 @@ export const AuthProvider = ({ children }) => {
                     .getPublicUrl(fileName);
 
                 imageUrl = publicUrl;
-                newActivity.image_url = imageUrl;
             } catch (error) {
                 console.error("Image upload failed:", error);
                 return { success: false, message: "Image upload failed" };
             }
         }
 
-        // Insert Activity
-        const { data: insertedActivity, error } = await supabase
-            .from('activities')
-            .insert([newActivity])
-            .select()
-            .single();
+        try {
+            // 2. Insert into Specific Detail Table
+            let detailTable = '';
+            let detailData = { create_by: user.id, image_file: imageUrl };
 
-        if (error) return { success: false, message: error.message };
-
-        // Calculate Points & Streak (Server-side logic ideally, but client-side for now)
-        // Check if activity type already done today
-        const activitiesToday = user.history.filter(a => a.date_string === today && a.type === activity.type);
-        const isEligibleForPoints = activitiesToday.length === 0;
-
-        let pointsToAdd = 0;
-        if (isEligibleForPoints) {
-            pointsToAdd = 1;
-        }
-
-        // Streak Logic (Same as before)
-        const hasActivityToday = user.history.some(a => a.date_string === today);
-
-        const bkkNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
-        bkkNow.setDate(bkkNow.getDate() - 1);
-        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
-        const yesterday = formatter.format(bkkNow);
-        const hasActivityYesterday = user.history.some(a => a.date_string === yesterday);
-
-        let newStreak = user.streak;
-        if (!hasActivityToday) {
-            if (hasActivityYesterday) {
-                newStreak += 1;
-            } else if (user.streak === 0) {
-                newStreak = 1;
-            } else {
-                newStreak = 1;
+            switch (activity.type) {
+                case 'checkin':
+                    detailTable = 'CheckinCenter';
+                    detailData = { ...detailData, checkin_type: activity.checkinType, location: activity.location };
+                    break;
+                case 'book':
+                    detailTable = 'BookSummary';
+                    detailData = { ...detailData, book_title: activity.bookTitle, key_takeaway: activity.summary };
+                    break;
+                case 'clip':
+                    detailTable = 'ClipSummary';
+                    detailData = { ...detailData, clip_link: activity.clipLink, key_takeaway: activity.summary };
+                    break;
+                case 'coaching':
+                    detailTable = 'Coaching';
+                    detailData = { ...detailData, coachee_name: activity.coachee, key_takeaway: activity.notes };
+                    break;
+                case 'sale':
+                    detailTable = 'SaleSlip';
+                    detailData = { ...detailData, amount: activity.amount, note: activity.notes };
+                    break;
+                default:
+                    return { success: false, message: 'Invalid activity type' };
             }
+
+            const { data: insertedDetail, error: detailError } = await supabase
+                .from(detailTable)
+                .insert([detailData])
+                .select()
+                .single();
+
+            if (detailError) throw detailError;
+
+            // 3. Insert into RecordActivity
+            const { data: insertedRecord, error: recordError } = await supabase
+                .from('RecordActivity')
+                .insert([{
+                    member_id: user.id,
+                    activity_type: activity.type,
+                    ref_id: insertedDetail.id,
+                    date_string: today
+                }])
+                .select()
+                .single();
+
+            if (recordError) throw recordError;
+
+            // 4. Calculate Points & Streak
+            const activitiesToday = user.history.filter(a => a.date_string === today && a.type === activity.type);
+            const isEligibleForPoints = activitiesToday.length === 0;
+            const pointsToAdd = isEligibleForPoints ? 1 : 0;
+
+            const hasActivityToday = user.history.some(a => a.date_string === today);
+
+            // Calculate yesterday in BKK time
+            const bkkNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+            bkkNow.setDate(bkkNow.getDate() - 1);
+            const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
+            const yesterday = formatter.format(bkkNow);
+            const hasActivityYesterday = user.history.some(a => a.date_string === yesterday);
+
+            let newStreak = user.streak;
+            if (!hasActivityToday) {
+                if (hasActivityYesterday) {
+                    newStreak += 1;
+                } else if (user.streak === 0) {
+                    newStreak = 1;
+                } else {
+                    newStreak = 1; // Reset if missed a day (logic implies streak is consecutive days)
+                }
+            }
+
+            const newTotalPoints = (user.points || 0) + pointsToAdd;
+
+            // 5. Update ScoreMember
+            const { error: scoreError } = await supabase
+                .from('ScoreMember')
+                .upsert({
+                    member_id: user.id,
+                    total_point: newTotalPoints,
+                    current_streak: newStreak,
+                    update_on: new Date().toISOString(),
+                    update_by: user.id
+                }, { onConflict: 'member_id' });
+
+            if (scoreError) throw scoreError;
+
+            // 6. Update local state
+            // We need to construct a "history item" that looks like what the View returns
+            // so the UI updates immediately without refetching
+            const newHistoryItem = {
+                id: insertedRecord.id,
+                user_id: user.id,
+                type: activity.type,
+                created_at: insertedRecord.create_on,
+                date_string: today,
+                image_url: imageUrl,
+                data: { ...activity, image: undefined } // Approximate the JSON structure
+            };
+
+            setUser(prev => ({
+                ...prev,
+                points: newTotalPoints,
+                streak: newStreak,
+                history: [newHistoryItem, ...prev.history]
+            }));
+
+            return { success: true, pointsAdded: pointsToAdd };
+
+        } catch (error) {
+            console.error("Error adding activity:", error);
+            return { success: false, message: error.message };
         }
-
-        // Update Profile with new points/streak
-        const updates = {
-            points: user.points + pointsToAdd,
-            streak: newStreak
-        };
-
-        await updateUser(updates);
-
-        // Update local state
-        setUser(prev => ({
-            ...prev,
-            ...updates,
-            history: [insertedActivity, ...prev.history]
-        }));
-
-        return { success: true, pointsAdded: pointsToAdd };
     };
 
     const getAllUsers = async () => {

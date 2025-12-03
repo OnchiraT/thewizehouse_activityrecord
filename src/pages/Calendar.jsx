@@ -88,9 +88,10 @@ const Calendar = () => {
     };
 
     const getImageSource = (activity) => {
+        // 1. Check direct image_url (from View or new schema)
         if (activity.image_url) return activity.image_url;
 
-        // Check data object
+        // 2. Check data object (constructed by View or legacy JSON)
         let data = activity.data;
         if (typeof data === 'string') {
             try {
@@ -102,7 +103,7 @@ const Calendar = () => {
 
         if (data && data.image) return data.image;
 
-        // Check top level legacy
+        // 3. Fallback for very old legacy data
         if (activity.image) return activity.image;
 
         return null;
