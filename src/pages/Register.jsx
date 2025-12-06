@@ -149,10 +149,11 @@ const Register = () => {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                        <label htmlFor="upline" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Upline (Optional)</label>
+                        <label htmlFor="upline" style={{ fontSize: '0.875rem', fontWeight: '500' }}>Mentor (Optional)</label>
                         <UserSearch
+                            users={uplines}
                             onSelect={(user) => setFormData(prev => ({ ...prev, upline: user ? user.nickname : '' }))}
-                            placeholder="Search for Upline..."
+                            placeholder="Search for Mentor..."
                         />
                     </div>
 

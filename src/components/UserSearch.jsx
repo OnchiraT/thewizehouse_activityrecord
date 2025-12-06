@@ -2,24 +2,38 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const UserSearch = ({ onSelect, placeholder = "Search user...", initialValue = null, excludeUserId = null }) => {
+const UserSearch = ({ onSelect, placeholder = "Search mentor...", initialValue = null, excludeUserId = null, users = null }) => {
     const { getAllUsers } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [internalUsers, setInternalUsers] = useState([]);
     const wrapperRef = useRef(null);
 
+    // Use provided users prop or internal state
+    const sourceUsers = users || internalUsers;
+
     useEffect(() => {
-        if (initialValue) {
-            const allUsers = getAllUsers();
-            const found = allUsers.find(u => u.nickname === initialValue || u.id === initialValue);
+        // If users prop is not provided, fetch them
+        if (!users) {
+            const fetchUsers = async () => {
+                const data = await getAllUsers();
+                setInternalUsers(data || []);
+            };
+            fetchUsers();
+        }
+    }, [users, getAllUsers]);
+
+    useEffect(() => {
+        if (initialValue && sourceUsers.length > 0) {
+            const found = sourceUsers.find(u => u.nickname === initialValue || u.id === initialValue);
             if (found) {
                 setSelectedUser(found);
                 setSearchTerm(found.nickname);
             }
         }
-    }, [initialValue, getAllUsers]);
+    }, [initialValue, sourceUsers]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -42,8 +56,7 @@ const UserSearch = ({ onSelect, placeholder = "Search user...", initialValue = n
             return;
         }
 
-        const allUsers = getAllUsers();
-        const filtered = allUsers.filter(user => {
+        const filtered = sourceUsers.filter(user => {
             if (excludeUserId && user.id === excludeUserId) return false;
             const searchLower = term.toLowerCase();
             return (

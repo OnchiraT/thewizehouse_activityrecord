@@ -122,7 +122,7 @@ const Team = () => {
                         <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280', backgroundColor: '#F9FAFB', borderRadius: '0.5rem' }}>
                             <Users size={48} color="#D1D5DB" style={{ margin: '0 auto 1rem' }} />
                             <p>You don't have any downlines yet.</p>
-                            <p style={{ fontSize: '0.875rem' }}>Invite friends to join and select you as their upline!</p>
+                            <p style={{ fontSize: '0.875rem' }}>Invite friends to join and select you as their mentor!</p>
                         </div>
                     )}
                 </div>

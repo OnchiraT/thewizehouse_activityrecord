@@ -175,12 +175,12 @@ const Profile = () => {
                         </div>
 
                         <div className="flex flex-col gap-2">
-                            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#6B7280' }}>Upline</label>
+                            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#6B7280' }}>Mentor</label>
                             {isEditing ? (
                                 <UserSearch
                                     initialValue={formData.upline || user.upline}
                                     onSelect={(u) => setFormData(prev => ({ ...prev, upline: u ? u.nickname : '' }))}
-                                    placeholder="Search new Upline..."
+                                    placeholder="Search new Mentor..."
                                     excludeUserId={user.id}
                                 />
                             ) : (

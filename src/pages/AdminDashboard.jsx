@@ -191,7 +191,7 @@ const AdminDashboard = () => {
                                 <thead>
                                     <tr style={{ borderBottom: '2px solid #E5E7EB', textAlign: 'left' }}>
                                         <th style={{ padding: '1rem' }}>User</th>
-                                        <th style={{ padding: '1rem' }}>Upline</th>
+                                        <th style={{ padding: '1rem' }}>Mentor</th>
                                         <th style={{ padding: '1rem' }}>Stats</th>
                                         <th style={{ padding: '1rem' }}>Actions</th>
                                     </tr>
@@ -220,7 +220,7 @@ const AdminDashboard = () => {
                                                             initialValue={user.upline}
                                                             onSelect={(u) => handleUpdateUpline(user.id, u ? u.nickname : '')}
                                                             excludeUserId={user.id}
-                                                            placeholder="Select new upline..."
+                                                            placeholder="Select new mentor..."
                                                         />
                                                         <button onClick={() => setEditingUser(null)} style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: '0.5rem' }}>Cancel</button>
                                                     </div>
