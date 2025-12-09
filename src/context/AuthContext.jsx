@@ -109,6 +109,7 @@ export const AuthProvider = ({ children }) => {
                         .insert([
                             {
                                 id: currentUser.id,
+                                email: currentUser.email,
                                 nickname: currentUser.user_metadata?.nickname || currentUser.email.split('@')[0],
                                 full_name: currentUser.user_metadata?.full_name || '',
                                 upline: currentUser.user_metadata?.upline || null,
@@ -251,7 +252,9 @@ export const AuthProvider = ({ children }) => {
             nickname: updates.nickname || user.nickname,
             full_name: updates.fullName || user.full_name, // Map fullName to full_name
             upline: updates.upline || user.upline,
-            avatar_url: avatarUrl
+            avatar_url: avatarUrl,
+            points: updates.points !== undefined ? updates.points : user.points,
+            streak: updates.streak !== undefined ? updates.streak : user.streak
         };
 
         const { error } = await supabase
