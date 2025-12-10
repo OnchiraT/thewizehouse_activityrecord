@@ -4,6 +4,53 @@ import { getBKKDateString } from '../utils/dateUtils';
 
 const AuthContext = createContext(null);
 
+// Helper function to calculate streak from activity history
+const calculateStreak = (activities) => {
+    if (!activities || activities.length === 0) return 0;
+
+    // Get today's date in Bangkok timezone
+    const today = getBKKDateString();
+
+    // Get unique dates from activities (sorted descending)
+    const uniqueDates = [...new Set(activities.map(a => a.date_string))].sort().reverse();
+
+    if (uniqueDates.length === 0) return 0;
+
+    // Check if user has activity today or yesterday to start counting
+    const mostRecentDate = uniqueDates[0];
+
+    // Calculate yesterday's date in Bangkok timezone
+    const bkkNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
+    bkkNow.setDate(bkkNow.getDate() - 1);
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
+    const yesterday = formatter.format(bkkNow);
+
+    // If the most recent activity is not today or yesterday, streak is broken
+    if (mostRecentDate !== today && mostRecentDate !== yesterday) {
+        return 0;
+    }
+
+    // Count consecutive days starting from the most recent activity date
+    let streak = 0;
+    let currentDate = new Date(mostRecentDate + 'T00:00:00');
+
+    for (const dateStr of uniqueDates) {
+        const activityDate = new Date(dateStr + 'T00:00:00');
+        const expectedDate = new Date(currentDate);
+
+        // Check if this date matches the expected date in the streak
+        if (activityDate.getTime() === expectedDate.getTime()) {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+        } else if (activityDate.getTime() < expectedDate.getTime()) {
+            // There's a gap, streak is broken
+            break;
+        }
+    }
+
+    return streak;
+};
+
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -145,7 +192,19 @@ export const AuthProvider = ({ children }) => {
 
             if (historyError) throw historyError;
 
-            setUser({ ...data, history: history || [] });
+            // Calculate actual streak from activity history
+            const actualStreak = calculateStreak(history || []);
+
+            // If streak differs from stored value, update it in database
+            if (actualStreak !== data.streak) {
+                console.log('AuthContext: Streak mismatch. Stored:', data.streak, 'Calculated:', actualStreak);
+                await supabase
+                    .from('profiles')
+                    .update({ streak: actualStreak })
+                    .eq('id', userId);
+            }
+
+            setUser({ ...data, streak: actualStreak, history: history || [] });
         } catch (error) {
             console.error('Error fetching profile:', error);
             // Fallback: set minimal user to avoid null user causing redirect
@@ -345,25 +404,10 @@ export const AuthProvider = ({ children }) => {
             pointsToAdd = 1;
         }
 
-        // Streak Logic (Same as before)
-        const hasActivityToday = user.history.some(a => a.date_string === today);
-
-        const bkkNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
-        bkkNow.setDate(bkkNow.getDate() - 1);
-        const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: "Asia/Bangkok", year: 'numeric', month: '2-digit', day: '2-digit' });
-        const yesterday = formatter.format(bkkNow);
-        const hasActivityYesterday = user.history.some(a => a.date_string === yesterday);
-
-        let newStreak = user.streak;
-        if (!hasActivityToday) {
-            if (hasActivityYesterday) {
-                newStreak += 1;
-            } else if (user.streak === 0) {
-                newStreak = 1;
-            } else {
-                newStreak = 1;
-            }
-        }
+        // Calculate new streak using the unified calculateStreak function
+        // Include the newly inserted activity in the history for calculation
+        const updatedHistory = [insertedActivity, ...user.history];
+        const newStreak = calculateStreak(updatedHistory);
 
         // Update Profile with new points/streak
         const updates = {
